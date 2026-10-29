@@ -35,6 +35,24 @@ the final answer; small, fast models do the grunt work; your frontier model only
 
 ---
 
+## Benchmarks
+
+Same multi-step task in every run: research the docs, write a sourced brief, then build a Three.js
+motion-graphics video. Each run starts from a fresh folder, with and without OpenFusion installed.
+
+| Main model | Setup | Cost | Wall time | Output quality | Cost savings | Time savings |
+|---|---|---:|---:|---|---:|---:|
+| Claude Opus 5.5 (High) | without OpenFusion | $6.01 | 23m 26s | 1080p30 video + sourced brief | | |
+| Claude Opus 5.5 (High) | **with OpenFusion** | **$4.70** | **16m 18s** | Same quality | **−21.8%** | **−30.4%** |
+| GPT-6 Astra (High) | without OpenFusion (avg. of 2 runs) | ≈$3.75 | 12m 31s | 1080p30 video + sourced brief | | |
+| GPT-6 Astra (High) | **with OpenFusion** | **≈$2.77** | **10m 59s** | Same quality | **−26.0%** | **−12.3%** |
+
+- **Cost includes every subagent.** With OpenFusion, Claude Code ran 3 cheaper workers next to its main
+  thread, and Codex ran 1 GPT-6 Luna worker that cost about $0.01.
+- **Codex costs are estimates** from published per-token pricing. Claude Code costs are as reported by the CLI.
+- **These are single runs, and runs vary,** so treat the numbers as a direction, not a guarantee. More
+  harnesses and repeat runs are coming.
+
 ## How it works
 
 ```mermaid
