@@ -137,4 +137,3 @@ Sources: [Artificial Analysis, 2026-10-28](https://artificialanalysis.ai/article
    natively; `install --available` picks for other harnesses; `route.py resolve <tier> --skip <model>` picks at run time.
 3. **Overrides need no edit.** `OPENFUSION_MODEL_<HARNESS>_<TIER>` or `OPENFUSION_MODEL_<TIER>` win over the YAML.
 4. **A dated table** (this section) and a release checklist item keep the defaults honest.
-
