@@ -249,11 +249,6 @@ Anthropic API as of Oct 2026), so a subagent with `model: opus` gets 5.5 without
 your CLI must be new enough to know the model (`claude update`), and on Bedrock, Vertex or Foundry the
 aliases can lag behind. To pin a version, set `OPENFUSION_MODEL_CLAUDE_CODE_DEEP=claude-opus-5-5` and re-install.
 
-**How does GitHub Copilot handle new and retired models?**
-Copilot keeps the model catalog on GitHub's side, retires models with a pointer to their replacement, and
-offers Auto model selection that picks a healthy, available model per request. A custom agent's `model`
-can be a list, and Copilot uses the first one available, which is exactly what OpenFusion writes.
-
 **Do I have to use all three tiers?**
 No. Point two tiers at the same model, or edit `escalation_ladder`.
 
