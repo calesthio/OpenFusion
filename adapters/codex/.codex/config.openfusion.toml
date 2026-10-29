@@ -1,0 +1,16 @@
+# Merge into .codex/config.toml (project) or ~/.codex/config.toml (user).
+# Docs: https://learn.chatgpt.com/docs/agent-configuration/subagents
+model = "gpt-6-astra"            # main thread / orchestrator: plans, routes, reviews
+model_reasoning_effort = "medium"
+
+# >>> openfusion agents >>>
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
+# Spawns without an explicit model run on the fast worker instead of inheriting the main model.
+default_subagent_model = "gpt-6-luna"
+default_subagent_reasoning_effort = "low"
+
+[features.multi_agent_v2]
+expose_spawn_agent_model_overrides = true   # default since openai/codex#32749; keep it on
+# <<< openfusion agents <<<

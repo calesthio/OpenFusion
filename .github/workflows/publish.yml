@@ -1,0 +1,76 @@
+# Publishes to PyPI with trusted publishing (OIDC, no token) when a version tag is pushed.
+# One-time setup: see DEVELOPMENT.md -> "Publishing to PyPI" (pending publisher on PyPI + `pypi` environment).
+name: publish
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to upload"
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Tag matches __version__
+        if: github.event_name == 'push'
+        run: |
+          version="$(python3 -c "import re,pathlib;print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('core/router/openfusion/__init__.py').read_text()).group(1))")"
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != v$version"; exit 1; }
+      - name: Test
+        run: uv run --with pytest --with pyyaml --with-editable . pytest -q
+      - run: uv build
+      - name: Smoke-test the wheel
+        run: |
+          whl="$(ls "$PWD"/dist/openfusion-*.whl)"
+          cd "$(mktemp -d)" && mkdir repo
+          uvx --from "$whl" openfusion install claude-code repo
+          test -f repo/.claude/agents/fusion-deep.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    if: github.event_name == 'push' || inputs.target == 'pypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/openfusion
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  testpypi:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'testpypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/openfusion
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

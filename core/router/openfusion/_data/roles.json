@@ -1,0 +1,12 @@
+{
+ "source": "core/prompts/roles.yaml",
+ "source_sha256": "c594713e8fd3e2933191befa5bf3e9814ba92e5bc33ac75681ea677a9bf8e646",
+ "data": {
+  "fast": "OpenFusion fast-tier worker: search, codebase lookups, summaries, docs, renames, typos, formatting and small mechanical edits. Use for any read-only exploration.",
+  "standard": "OpenFusion standard-tier worker: well-scoped features, ordinary bugs with an error or failing test, refactors, writing tests and code review.",
+  "deep": "OpenFusion deep-tier worker: architecture and planning, hard debugging (races, leaks, flaky or prod-only failures, perf regressions), security-sensitive changes, ambiguous specs. Also the escalation target when a cheaper worker failed.",
+  "judge-standard": "OpenFusion read-only judge on the standard tier. Reviews a fast-tier draft and returns a JSON approve/revise verdict. Never edits files.",
+  "judge-deep": "OpenFusion read-only judge on the deep tier. Reviews a standard-tier draft and returns a JSON approve/revise verdict. Never edits files.",
+  "critic": "OpenFusion read-only critic. Reviews a plan or diff through one assigned lens (correctness, security, operability, performance). Run several in parallel with different lenses."
+ }
+}

@@ -1,0 +1,3 @@
+# Main-thread profile: codex --profile fusion-deep   (copy to ~/.codex/)
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"

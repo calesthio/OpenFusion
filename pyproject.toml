@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openfusion"
+dynamic = ["version"]
+description = "Multi-model routing for any AI coding agent: send each subtask to the cheapest model that can do it well."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+dependencies = []  # zero runtime dependencies; PyYAML is only needed to read an edited YAML config
+authors = [{ name = "calesthio/OpenFusion contributors" }]
+keywords = ["ai", "coding-agent", "llm", "model-routing", "claude-code", "codex", "github-copilot",
+            "cursor", "gemini-cli", "opencode", "subagents"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development",
+]
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6"]
+test = ["pytest>=8", "PyYAML>=6"]
+
+[project.scripts]
+openfusion = "openfusion.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/calesthio/OpenFusion"
+Repository = "https://github.com/calesthio/OpenFusion"
+Documentation = "https://github.com/calesthio/OpenFusion#readme"
+Issues = "https://github.com/calesthio/OpenFusion/issues"
+Changelog = "https://github.com/calesthio/OpenFusion/releases"
+
+[tool.hatch.version]
+path = "core/router/openfusion/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core/router/openfusion"]
+
+# The renderer's sources and the generated reference adapters travel inside the wheel, so
+# `openfusion install <harness>` works without a checkout.
+[tool.hatch.build.targets.wheel.force-include]
+"core/openfusion.yaml" = "openfusion/_data/core/openfusion.yaml"
+"core/skill" = "openfusion/_data/core/skill"
+"core/prompts" = "openfusion/_data/core/prompts"
+"adapters" = "openfusion/_data/adapters"
+
+[tool.hatch.build.targets.sdist]
+include = ["core", "adapters", "docs", "tests", "install.sh", "install.ps1", "run_openfusion.py",
+           "README.md", "DEVELOPMENT.md", "LICENSE", "pyproject.toml"]
+exclude = ["**/__pycache__", "**/*.pyc"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

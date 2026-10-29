@@ -1,0 +1,3 @@
+# Main-thread profile: codex --profile fusion-standard   (copy to ~/.codex/)
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"

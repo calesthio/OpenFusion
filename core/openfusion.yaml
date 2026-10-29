@@ -1,0 +1,267 @@
+# OpenFusion routing config: the single source of truth.
+# Every harness adapter (Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, Google Antigravity, OpenCode, generic)
+# is generated from this file + core/skill + core/prompts:
+#   openfusion install <harness> <repo>      # render into a repo
+#   openfusion render all --out adapters     # refresh the checked-in adapters
+version: 1
+
+# ---------------------------------------------------------------------------
+# 1. Tiers: harness-agnostic capability/cost levels.
+#    Each provider maps a tier to an ordered list of model candidates (+ optional effort).
+#    Model IDs change often — edit these, nothing else needs to change.
+# ---------------------------------------------------------------------------
+tiers:
+  fast:
+    description: Cheapest/lowest-latency. Lookups, search, summaries, mechanical edits.
+    relative_cost: 1
+  standard:
+    description: Everyday coding. Feature work, tests, refactors, reviews.
+    relative_cost: 5
+  deep:
+    description: Strongest reasoning. Architecture, hard debugging, security, ambiguous specs.
+    relative_cost: 20
+
+escalation_ladder: [fast, standard, deep]
+
+providers:
+  # One entry per harness adapter. Only the model strings differ between harnesses;
+  # the skill, prompts and routing rules are shared.
+  #
+  # Each tier takes either `model: <id>` or `candidates: [<id>, <id>, ...]`, an ORDERED list:
+  # the first one you can use wins. How the list is used depends on the harness:
+  #   - github-copilot writes the whole list (VS Code / Copilot CLI 1.0.83+ pick the first available);
+  #   - every other harness writes the first candidate, or the first one in
+  #     `openfusion install ... --available <models>` / `--available-cmd "<cmd>"`;
+  #   - at run time the bundled `route.py resolve --skip <model>` returns the next candidate.
+  # Override any tier without editing this file: OPENFUSION_MODEL_<HARNESS>_<TIER>=<id>
+  # (e.g. OPENFUSION_MODEL_CLAUDE_CODE_DEEP=claude-opus-5-5) or OPENFUSION_MODEL_<TIER>=<id>.
+  #
+  # Prefer each harness's own aliases (they track new releases) over pinned IDs.
+  # Picks and sources: docs/HARNESSES.md -> "Models as of Oct 2026".
+  # "effort" is optional; each adapter maps it to that tool's field (or drops it).
+  claude-code:
+    # Aliases track the newest model per family for your provider (Anthropic API, Oct 2026:
+    # haiku = Haiku 5.5, sonnet = Sonnet 5.5, opus = Opus 5.5). Needs a current CLI (`claude update`).
+    # https://code.claude.com/docs/en/model-config
+    fast:     {candidates: [haiku],  effort: low}
+    standard: {candidates: [sonnet], effort: medium}
+    deep:     {candidates: [opus],   effort: high}
+  codex:
+    # Codex has no aliases: exact IDs from https://learn.chatgpt.com/docs/models (Oct 2026).
+    # Workers are spawned with an explicit model + reasoning_effort on every spawn_agent call (named custom
+    # agents can't be selected on multi-agent v2: openai/codex#31893). fast = mechanical bulk work on Luna
+    # at low effort; standard = Sol at medium. deep = the main thread (usually Astra): never spawn it.
+    fast:     {candidates: [gpt-6-luna],                 effort: low}
+    standard: {candidates: [gpt-6.1-sol, gpt-6-sol],     effort: medium}
+    deep:     {candidates: [gpt-6-astra, gpt-6.1-sol],   effort: medium}
+  cursor:
+    # IDs as written in https://cursor.com/docs/context/subagents (params go in [brackets]).
+    # Claude/Gemini/GPT are third-party (Premium+, API price); Composer is in every plan's pool.
+    # Cursor has no GPT-6 models (https://cursor.com/docs/models, Oct 2026).
+    # If a model is blocked or not on your plan, Cursor itself falls back to a compatible model.
+    fast:     {candidates: ["composer-2.5", "claude-haiku-5-5"]}
+    standard: {candidates: ["claude-sonnet-5-5", "gpt-5.6-sol", "composer-2.5"]}
+    deep:     {candidates: ["claude-opus-5-5[effort=high]", "gemini-4-argon", "gpt-5.6-sol"]}
+  github-copilot:
+    # Display names from https://docs.github.com/en/copilot/reference/ai-models/supported-models
+    # (Oct 2026). The whole list is written; Copilot uses the first one your plan/policy allows.
+    # The Pro plan has no Opus 5.x, GPT-6 Astra, GPT-6.1 Sol or Gemini 4 Argon, so every list ends
+    # in a model Pro does have.
+    fast:     {candidates: ["Claude Haiku 5.5 (copilot)", "GPT-6 Luna (copilot)", "Gemini 3.8 Flash (copilot)"], effort: low}
+    standard: {candidates: ["Claude Sonnet 5.5 (copilot)", "GPT-6.1 Sol (copilot)", "GPT-6.1 Terra (copilot)"], effort: medium}
+    deep:     {candidates: ["Claude Opus 5.5 (copilot)", "GPT-6 Astra (copilot)", "Gemini 4 Argon (copilot)", "Claude Sonnet 5.5 (copilot)"], effort: high}
+  gemini-cli:
+    # Gemini CLI aliases (packages/core/src/config/models.ts) resolve to the newest model your account
+    # can use: flash-lite -> gemini-3.5-flash-lite, flash -> gemini-3.8-flash, pro -> gemini-3.1-pro-preview
+    # (Oct 2026; Gemini CLI 0.66 is not yet tuned for Gemini 4). Exact IDs follow as fallbacks.
+    fast:     {candidates: [flash-lite, gemini-3.5-flash-lite]}
+    standard: {candidates: [flash, gemini-3.8-flash]}
+    deep:     {candidates: [pro, gemini-3.1-pro-preview]}
+  antigravity:
+    # Antigravity custom subagents take a tier, not a model ID: flash | pro | inherit
+    # (https://antigravity.google/docs/subagents/). `inherit` = the main agent's model, so if your main
+    # agent runs Claude Opus 5.5 or Gemini 4 Argon, setting deep to inherit gets you that model.
+    fast:     {model: flash}
+    standard: {model: pro}
+    deep:     {model: inherit}   # deep work stays in the main agent (see delegation.main_tier)
+  opencode:
+    # provider/model-id (https://opencode.ai/docs/models/). Install with
+    # `--available-cmd "opencode models"` to keep only providers you have connected.
+    fast:     {candidates: [anthropic/claude-haiku-5-5, openai/gpt-6-luna, google/gemini-3.8-flash]}
+    standard: {candidates: [anthropic/claude-sonnet-5-5, openai/gpt-6.1-sol, opencode/gpt-6.1-sol]}
+    deep:     {candidates: [anthropic/claude-opus-5-5, openai/gpt-6-astra, google/gemini-4-argon], effort: high}
+  generic:
+    # For any other tool: fill in whatever names your tool uses.
+    fast:     {model: "<small-model>"}
+    standard: {model: "<mid-model>"}
+    deep:     {model: "<frontier-model>"}
+
+# ---------------------------------------------------------------------------
+# 2. Effort levels (standard / high / max).
+#    The level caps which tiers and execution patterns are allowed.
+# ---------------------------------------------------------------------------
+effort_levels:
+  standard:   # cheapest: one model per task, no review passes
+    max_tier: deep
+    tier_shift: 0
+    patterns: [single]
+  high:       # multi-model patterns where the category asks for them
+    max_tier: deep
+    tier_shift: 0
+    patterns: [single, cascade, critique]
+  max:        # bias up one tier; work that lands on the top tier still gets critics
+    max_tier: deep
+    tier_shift: 1
+    patterns: [single, cascade, critique]
+    top_tier_pattern: critique
+default_effort: high
+
+# ---------------------------------------------------------------------------
+# 3. Task taxonomy + rules. Rules are cheap regexes scored per category.
+#    Keywords are regexes; use {re: ..., w: N} to weight a strong signal.
+#    intent_rules (anchored at the start of the task) win outright.
+#    Otherwise the highest-scoring category wins; ties -> higher tier. min_tier is a floor
+#    that down-signals ('quick', 'small') can never go below.
+# ---------------------------------------------------------------------------
+intent_rules:
+  - {re: '^\s*(where (is|are|do|does)|find|locate|search|grep|list|show me|what (is|does|are)|how (does|do|is)|explain|summari[sz]e|why is there)\b', category: search}
+  - {re: '^\s*(rename|fix (a |the )?typo|reformat|format|lint|bump)\b', category: routine_edit}
+  - {re: '^\s*(document|update the (readme|docs|changelog)|write (the )?(docs|readme|docstrings?))\b', category: docs}
+  - {re: '^\s*(review|audit)\b.*\b(security|auth|jwt|oauth|crypt|secret|injection)', category: security}
+
+categories:
+  architecture:
+    tier: deep
+    min_tier: standard
+    pattern: critique
+    description: Planning, system design, tradeoffs, migrations, large refactors.
+    keywords: ['architect', 'design (a|the|an)? ?(system|service|api|schema)', 'trade-?offs?', 'migrat', 'plan (the|a|out)', 'rfc', 'roadmap', 'scalab', 'from scratch', 're-?architect', 'monorepo', 'data model']
+  hard_debugging:
+    tier: deep
+    min_tier: standard
+    pattern: cascade
+    description: Root-causing non-obvious bugs, races, perf regressions, flaky tests, prod incidents.
+    keywords: ['race condition', 'deadlock', 'memory leak', 'flaky', 'intermittent', 'heisenbug', 'root cause', 'segfault', 'corrupt', 'regression', 'only (in|on) prod', 'perf(ormance)? (issue|regression|problem)', 'why (does|is) .* (fail|crash|hang|slow)', 'concurren', 'non-?deterministic']
+  security:
+    tier: deep
+    min_tier: deep
+    pattern: critique
+    description: Security review, auth, crypto, secrets, injection.
+    keywords: ['security', 'vulnerab', 'auth(entication|orization|n|z)?\b', 'oauth', 'jwt', 'crypt', 'xss', 'csrf', 'sql injection', 'secrets?', 'sandbox escape', 'cve']
+  feature:
+    tier: standard
+    pattern: cascade
+    description: Implement a well-scoped feature or multi-file change.
+    keywords: ['implement', '\badd\b', 'build', 'create (a|an) ', 'feature', 'endpoint', 'integrate', 'wire up', 'support for']
+  debugging:
+    tier: standard
+    pattern: single
+    description: Ordinary bugs with an error message or failing test.
+    keywords: ['\bfix\b', '\bbug\b', 'error', 'exception', 'stack ?trace', 'traceback', 'failing', 'broken', "doesn'?t work", 'crash']
+  refactor:
+    tier: standard
+    pattern: single
+    description: Restructure code without changing behavior.
+    keywords: ['refactor', 'clean ?up', 'extract (a )?(function|method|class)', 'deduplicate', 'simplify', 'restructure', 'modulari']
+  tests:
+    tier: standard
+    pattern: single
+    description: Write or update tests, raise coverage.
+    keywords: [{re: 'unit tests?', w: 2}, {re: '(write|add) (\w+ )?tests?', w: 2}, 'test cases?', 'coverage', 'pytest', 'jest', 'vitest', 'e2e', 'integration tests?', 'mock']
+  review:
+    tier: standard
+    pattern: single
+    description: Code review of a diff or PR.
+    keywords: ['review', '\bpr\b', 'pull request', 'diff', 'code smell']
+  routine_edit:
+    tier: fast
+    pattern: single
+    description: Mechanical/local edits — rename, typo, formatting, small config change.
+    keywords: [{re: 'rename', w: 3}, {re: 'typo', w: 3}, 'format', 'lint', 'bump (the )?version', 'update (the )?(import|dependency|version)', 'add (a )?(comment|docstring|log line)', 'change .* to ', 'one-?liner', 'remove unused']
+  docs:
+    tier: fast
+    pattern: single
+    description: READMEs, docstrings, changelogs, comments.
+    keywords: ['readme', 'docstring', 'documentation', '\bdocs?\b', 'changelog', 'jsdoc', 'comment']
+  search:
+    tier: fast
+    pattern: single
+    description: Find/locate/explain where something is; read-only exploration.
+    keywords: ['where is', 'find (all|the|where)?', 'locate', 'search', 'grep', 'list (all|the)', 'which files?', 'what does .* do', 'explain', 'how does', 'summari[sz]e', 'overview']
+
+fallback_category: feature   # when no rule matches (unknown => standard work)
+
+# ---------------------------------------------------------------------------
+# 4. Complexity signals nudge the tier up/down.
+# ---------------------------------------------------------------------------
+signals:
+  bump_up:     # each match adds +1 score toward the next tier
+    - 'across (the )?(codebase|repo|services|modules|files)'
+    - 'multiple (files|services|modules|repos)'
+    - '\b(entire|whole) (codebase|repo|system)'
+    - 'production|prod incident|outage|customer-facing'
+    - 'ambiguous|unclear|not sure (why|how)'
+    - 'carefully|thorough|deep(ly)? (dive|analysis)'
+  bump_down:
+    - 'quick(ly)?|simple|small|trivial|just|minor'
+    - '\bone (line|file|function)\b'
+  long_prompt_chars: 1500     # very long task descriptions bump up one step
+  bump_threshold: 2           # net signal score needed to move one tier
+
+# ---------------------------------------------------------------------------
+# 4b. Delegation economics. A subagent pays a full context bootstrap (system prompt, brief, re-reading
+#     files) and the orchestrator pays again to read its result, so delegation only saves money for
+#     bulk, well-scoped work on a CHEAPER model than the main thread. Benchmarks showed that spawning
+#     a second copy of the main model, small spawns and polling loops cost more than doing it inline.
+# ---------------------------------------------------------------------------
+delegation:
+  # Tier the main/orchestrator model usually sits on, per harness (`default` for the rest). Work routed
+  # to this tier or above runs in the main thread (route.py prints run_in: main); judges at or above it
+  # are you reviewing the diff yourself. Override per session with route.py --main-model / --main-tier
+  # or OPENFUSION_MAIN_TIER.
+  main_tier:
+    default: deep
+  inline_max_steps: 4      # do it yourself when it takes <= this many tool calls or edits...
+  inline_max_files: 1      # ...or touches <= this many files
+  inline_max_task_chars: 120   # router: a short fast-tier `single` task without bulk words runs inline
+  bulk_re: '\b(all|every|each|across|batch|bulk|whole|entire|many|codebase|repo-wide)\b'
+  max_subagents: 3         # per user task, all tiers together
+  wait_timeout_minutes: 30 # collect results with one long wait, never poll
+
+# ---------------------------------------------------------------------------
+# 5. Optional cheap classifier escalation (off by default).
+#    When rule confidence < threshold, run `command` with the task on stdin.
+#    It must print JSON: {"category": "...", "confidence": 0.0-1.0}
+#    e.g. a script that calls your fast-tier model with core/prompts/classifier.md
+# ---------------------------------------------------------------------------
+classifier:
+  enabled: false
+  confidence_threshold: 0.45
+  command: null
+  timeout_seconds: 5          # on timeout/error: keep the rules decision
+
+# ---------------------------------------------------------------------------
+# 6. Execution patterns.
+# ---------------------------------------------------------------------------
+patterns:
+  single:   {description: One tier completes the task.}
+  cascade:
+    description: Draft on the routed tier; a judge on the next tier up approves or escalates.
+    judge_tier_offset: 1      # judge runs one tier above the drafter (capped at deep)
+    max_escalations: 1
+  critique:
+    description: Draft on the routed tier; N critics review in parallel; drafter revises once.
+    critics: 2
+    critic_tier: standard
+
+# Escalate to the next tier on any of these (cheap model failed):
+escalate_on:
+  - judge_verdict_revise      # judge said "revise" with a concrete defect
+  - tests_fail_after_attempt  # same tests still failing after the drafter's attempt
+  - tool_loop                 # >= 3 consecutive failed tool calls / edits that don't apply
+  - self_reported_low_confidence
+  - context_overflow          # task didn't fit the cheap model's window
+
+# Stickiness: keep the main thread on one model to protect prompt cache.
+# Re-route only at cache boundaries (new task, after compaction).
+sticky_main_thread: true
