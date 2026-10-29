@@ -62,39 +62,6 @@ flowchart LR
 4. **Escalate.** A revise verdict, tests still failing, a tool loop, low confidence or a context overflow
    sends the task up the ladder: `fast → standard → deep`.
 
-| Tier | Typical work | Claude Code | Codex | GitHub Copilot | Cursor | Gemini CLI | Antigravity | OpenCode |
-|---|---|---|---|---|---|---|---|---|
-| fast | search, codebase lookups, docs, renames, small mechanical edits | `haiku` | `gpt-6-luna` (low) | Claude Haiku 5.5 → GPT-6 Luna → Gemini 3.8 Flash | `composer-2.5` → `claude-haiku-5-5` | `flash-lite` | `flash` | `anthropic/claude-haiku-5-5` → `openai/gpt-6-luna` |
-| standard | features, ordinary bugs, refactors, tests, code review | `sonnet` | `gpt-6.1-sol` (medium) | Claude Sonnet 5.5 → GPT-6.1 Sol → GPT-6.1 Terra | `claude-sonnet-5-5` → `gpt-5.6-sol` | `flash` | `pro` | `anthropic/claude-sonnet-5-5` → `openai/gpt-6.1-sol` |
-| deep | architecture, flaky/production bugs, security, ambiguous specs | `opus` | `gpt-6-astra` | Claude Opus 5.5 → GPT-6 Astra → Gemini 4 Argon → Claude Sonnet 5.5 | `claude-opus-5-5` → `gemini-4-argon` | `pro` | `inherit` | `anthropic/claude-opus-5-5` → `openai/gpt-6-astra` |
-
-Defaults as of **Oct 2026** (arrows are the fallback order; Codex reasoning effort in brackets). The deep
-column is normally your main thread, not a spawned worker. Why these picks, with sources:
-[docs/HARNESSES.md → Models as of Oct 2026](https://github.com/calesthio/OpenFusion/blob/main/docs/HARNESSES.md#models-as-of-oct-2026).
-
-Every model name lives in one file, `core/openfusion.yaml`, and each tier is an **ordered list of
-candidates**, so a model you can't use falls through to the next one:
-
-- **Aliases first.** Where the harness has them (`opus`, `sonnet`, `haiku` in Claude Code; `pro`, `flash` in
-  Gemini CLI; `flash` / `pro` in Antigravity), OpenFusion uses them. The harness maps an alias to its newest
-  model, so `opus` already means Opus 5.5 today and will mean the next Opus without any change here.
-- **Ordered lists.** GitHub Copilot gets the whole list and uses the first model your plan allows. For the
-  other harnesses, `install --available <models>` (or `--available-cmd "opencode models"`) writes the first
-  candidate you actually have.
-- **Overrides without editing.** Set `OPENFUSION_MODEL_<HARNESS>_<TIER>` (e.g.
-  `OPENFUSION_MODEL_CLAUDE_CODE_DEEP=claude-opus-5-5`) or `OPENFUSION_MODEL_<TIER>` before installing.
-- **At run time,** if a worker's model is unavailable, the skill runs `route.py resolve <tier> --skip <model>`
-  to get the next candidate.
-
-Each harness gets the same six workers: `fusion-fast`, `fusion-standard`, `fusion-deep`,
-`fusion-judge-standard`, `fusion-judge-deep` and `fusion-critic` (Codex uses `_` instead of `-`).
-Judges and critics are read-only wherever the tool supports it.
-
-> **Honest status:** every adapter's file format is checked against that tool's official docs and the test
-> suite verifies the generated files parse correctly, but OpenFusion has **not yet been tested live inside
-> every harness**. See [docs/HARNESSES.md](https://github.com/calesthio/OpenFusion/blob/main/docs/HARNESSES.md) for per-tool caveats, and please open an issue
-> if something doesn't load.
-
 ## 60-second quickstart
 
 You need **Python 3.9+** ([python.org](https://www.python.org/downloads/); on Windows tick *Add python.exe to PATH*).
