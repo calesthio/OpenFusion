@@ -138,7 +138,3 @@ Sources: [Artificial Analysis, 2026-10-28](https://artificialanalysis.ai/article
 3. **Overrides need no edit.** `OPENFUSION_MODEL_<HARNESS>_<TIER>` or `OPENFUSION_MODEL_<TIER>` win over the YAML.
 4. **A dated table** (this section) and a release checklist item keep the defaults honest.
 
-GitHub Copilot handles the same problem on the server: it owns the model catalog, retires models with
-a pointer to a replacement, offers Auto model selection (picks a healthy, available model per request, at a
-10% discount) and an evolving runtime router, and lets custom agents list several models. OpenFusion borrows
-the parts that work in a config file: tiers instead of IDs, aliases, ordered lists and availability-based fallback.
